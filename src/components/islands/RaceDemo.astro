@@ -1,0 +1,222 @@
+---
+/**
+ * DEMO-01 — the race condition, runnable (09 §Proof-1, 02 §Ch02).
+ * A self-built, generic demonstration: no client code, no proprietary
+ * logic — the class of bug and the class of fix (Law #4).
+ *
+ * Server-rendered shell; src/motion/demo.ts wires behavior. Without JS the
+ * panel presents its two modes as static text — the story still reads.
+ */
+import { COPY } from '@content/copy';
+---
+
+<div class="demo" data-race-demo>
+  <header class="demo__head">
+    <p class="micro-caps">DEMO-01 · RUN THE RACE</p>
+    <p class="demo__hint">{COPY.correction.demoHint}</p>
+  </header>
+
+  <div class="demo__controls" role="group" aria-label="Demo controls">
+    <div class="demo__modes">
+      <button class="demo__mode is-active" data-demo-mode="naive" aria-pressed="true">
+        Read → check → write
+      </button>
+      <button class="demo__mode" data-demo-mode="atomic" aria-pressed="false">
+        Atomic conditional update
+      </button>
+    </div>
+    <button class="demo__run" data-demo-run>Run both orders</button>
+  </div>
+
+  <div class="demo__board">
+    <div class="demo__lane" data-demo-lane="a">
+      <p class="micro-caps">ORDER A</p>
+      <ol class="demo__trace mono" data-demo-trace="a" role="list"></ol>
+      <p class="demo__verdict mono" data-demo-verdict="a"></p>
+    </div>
+
+    <div class="demo__stock">
+      <p class="micro-caps">STOCK</p>
+      <p class="demo__count mono" data-demo-stock>1</p>
+      <p class="demo__constraint micro-caps" data-demo-constraint hidden>
+        CHECK (stock &gt;= 0)
+      </p>
+    </div>
+
+    <div class="demo__lane" data-demo-lane="b">
+      <p class="micro-caps">ORDER B</p>
+      <ol class="demo__trace mono" data-demo-trace="b" role="list"></ol>
+      <p class="demo__verdict mono" data-demo-verdict="b"></p>
+    </div>
+  </div>
+
+  <p class="demo__readout" data-demo-readout role="status" aria-live="polite"></p>
+
+  <noscript>
+    <p class="demo__noscript">
+      With JavaScript off, the short version: read-then-write lets two
+      concurrent orders both see stock&nbsp;=&nbsp;1 and both commit — stock
+      lands at −1. An atomic conditional update
+      (<code>UPDATE … SET stock = stock − 1 WHERE stock ≥ 1</code>) lets
+      exactly one win; the other affects zero rows and fails safely.
+    </p>
+  </noscript>
+</div>
+
+<style>
+  .demo {
+    border: 1px solid var(--line-1);
+    background: var(--ink-1);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: 64rem;
+  }
+
+  .demo__hint {
+    margin-top: var(--space-1);
+    color: var(--text-2);
+    font-size: var(--type-caption);
+  }
+
+  .demo__controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .demo__modes {
+    display: flex;
+    border: 1px solid var(--line-1);
+  }
+
+  .demo__mode {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-caption);
+    transition:
+      color var(--t-1) var(--ease-drift),
+      background-color var(--t-1) var(--ease-drift);
+  }
+
+  .demo__mode.is-active {
+    color: var(--ink-0);
+    background: var(--text-1);
+  }
+
+  .demo__run {
+    background: none;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--cyan-1);
+    color: var(--text-0);
+    font-family: var(--font-mono);
+    font-size: var(--type-caption);
+    background-image: linear-gradient(var(--cyan-1), var(--cyan-1));
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    transition:
+      background-size var(--t-2) var(--ease-current),
+      color var(--t-2) var(--ease-current);
+  }
+
+  .demo__run:hover,
+  .demo__run:focus-visible {
+    background-size: 100% 100%;
+    color: var(--ink-0);
+  }
+
+  .demo__run[disabled] {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .demo__board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .demo__trace {
+    list-style: none;
+    padding: 0;
+    margin-top: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--type-caption);
+    color: var(--text-2);
+    min-height: 5.5rem;
+  }
+
+  .demo__trace li.is-live {
+    color: var(--text-1);
+  }
+
+  .demo__verdict {
+    font-size: var(--type-caption);
+    min-height: 1.5em;
+  }
+
+  .demo__verdict.is-ok {
+    color: var(--cyan-1);
+  }
+
+  .demo__verdict.is-fault {
+    color: var(--warn-1);
+  }
+
+  .demo__stock {
+    text-align: center;
+    border: 1px solid var(--line-1);
+    padding: var(--space-3) var(--space-4);
+    min-width: 9rem;
+  }
+
+  .demo__count {
+    font-size: var(--type-display-3);
+    color: var(--text-0);
+    margin-top: var(--space-1);
+    transition: color var(--t-2) var(--ease-drift);
+  }
+
+  .demo__count.is-fault {
+    color: var(--warn-1);
+  }
+
+  .demo__constraint {
+    margin-top: var(--space-2);
+    color: var(--cyan-1);
+  }
+
+  .demo__readout {
+    color: var(--text-1);
+    font-size: var(--type-caption);
+    min-height: 2.5em;
+    max-width: none;
+  }
+
+  .demo__noscript {
+    color: var(--text-2);
+    font-size: var(--type-caption);
+  }
+
+  @media (max-width: 767px) {
+    .demo__board {
+      grid-template-columns: 1fr;
+    }
+
+    .demo__stock {
+      order: -1;
+      justify-self: center;
+    }
+  }
+</style>

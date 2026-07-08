@@ -1,0 +1,226 @@
+/**
+ * Global base styles. Governed by docs/production/04-visual-bible.md.
+ * Components own their layout; this file owns reset, typography defaults,
+ * focus, selection, and the reduced-motion contract (03 §10).
+ */
+@import './tokens.css';
+
+/* ── Reset ─────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--ink-0);
+  color: var(--text-1);
+  font-family: var(--font-text);
+  font-size: var(--type-body-2);
+  line-height: var(--leading-body-2);
+  min-height: 100vh;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Typography defaults ───────────────────────────────────────── */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--text-0);
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+
+p {
+  max-width: var(--measure-body);
+}
+
+a {
+  color: var(--text-1);
+  text-decoration: none;
+}
+
+/* Link hover: cyan underline draws L→R (03 §7 via background-size). */
+.link {
+  background-image: linear-gradient(var(--cyan-1), var(--cyan-1));
+  background-repeat: no-repeat;
+  background-position: left 100%;
+  background-size: 0% 1px;
+  transition: background-size var(--t-1) var(--ease-current);
+  padding-bottom: 2px;
+}
+
+.link:hover,
+.link:focus-visible {
+  background-size: 100% 1px;
+}
+
+/* ── Utility voices ────────────────────────────────────────────── */
+.micro-caps {
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  line-height: var(--leading-micro);
+  font-weight: 500;
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Focus (04 §8): 1px cyan outline, 4px offset, square ───────── */
+:focus-visible {
+  outline: 1px solid var(--cyan-1);
+  outline-offset: 4px;
+}
+
+::selection {
+  background: var(--cyan-1);
+  color: var(--ink-0);
+}
+
+/* ── Skip link (08 §3) ─────────────────────────────────────────── */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-overlay);
+  padding: var(--space-1) var(--space-2);
+  background: var(--ink-1);
+  border: 1px solid var(--cyan-1);
+  color: var(--text-0);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* ── Atmosphere layer (z-atmosphere: behind everything) ────────── */
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-atmosphere);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+main {
+  position: relative;
+  z-index: var(--z-render);
+}
+
+/* ── Chapter section baseline (padding owned by ChapterShell) ──── */
+.chapter {
+  position: relative;
+}
+
+/* ── Subtitle voice (10 §rule-6): minimal, centered, timed ─────── */
+.subtitle {
+  font-family: var(--font-text);
+  font-size: var(--type-body-1);
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: var(--text-0);
+  text-align: center;
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.85);
+}
+
+/* ── Letterbox (10 §rules 4/9) — engaged by the cinema module ──── */
+.letterbox span {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: var(--ink-0);
+  z-index: 38; /* beneath the chrome: the Index never disappears */
+  pointer-events: none;
+}
+
+.letterbox span:first-child {
+  top: 0;
+}
+
+.letterbox span:last-child {
+  bottom: 0;
+}
+
+/* ── Film grain: one still texture, palette-pure, never animated ─ */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Cold open overlay (10 §rule-1) ────────────────────────────── */
+.cold-open {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--ink-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cold-open[hidden] {
+  display: none;
+}
+
+.cold-open p {
+  position: absolute;
+  opacity: 0;
+  max-width: 34em;
+  padding: 0 var(--margin-page);
+}
+
+/* ── Reduced motion: first-class edition (03 §10) ──────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

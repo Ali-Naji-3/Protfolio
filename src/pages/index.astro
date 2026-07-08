@@ -1,0 +1,31 @@
+---
+/**
+ * The film. One continuous page, eight chapters, persistent chrome.
+ * Every chapter is server-rendered content (08 §1); animation islands
+ * hydrate over this document in M2–M5 without changing its semantics.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PersistentChrome from '@components/chrome/PersistentChrome.astro';
+import Ch00Enter from '@components/chapters/Ch00Enter.astro';
+import Ch01Anomaly from '@components/chapters/Ch01Anomaly.astro';
+import Ch02Correction from '@components/chapters/Ch02Correction.astro';
+import Ch03Author from '@components/chapters/Ch03Author.astro';
+import Ch04Proofs from '@components/chapters/Ch04Proofs.astro';
+import Ch05Method from '@components/chapters/Ch05Method.astro';
+import Ch06Person from '@components/chapters/Ch06Person.astro';
+import Ch07Invitation from '@components/chapters/Ch07Invitation.astro';
+---
+
+<BaseLayout>
+  <PersistentChrome />
+  <main id="content">
+    <Ch00Enter />
+    <Ch01Anomaly />
+    <Ch02Correction />
+    <Ch03Author />
+    <Ch04Proofs />
+    <Ch05Method />
+    <Ch06Person />
+    <Ch07Invitation />
+  </main>
+</BaseLayout>

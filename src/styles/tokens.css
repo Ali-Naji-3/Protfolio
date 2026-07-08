@@ -1,0 +1,81 @@
+/**
+ * Design tokens — 1:1 translation of docs/production/04-visual-bible.md.
+ * The Visual Bible is the source of truth; do not invent values here.
+ * The palette is CLOSED: black / white / cyan (+ the rationed warn). §2
+ */
+:root {
+  /* ── Color (§2.1) ─────────────────────────────────────────────── */
+  --ink-0: #000000; /* Absolute Black — the system's ground */
+  --ink-1: #0a0a0b; /* Frame Black — elevated grounds, panels */
+  --ink-2: #141416; /* Surface Black — interactive resting surfaces */
+  --line-1: #26262a; /* Hairline — borders, inactive strokes */
+  --text-2: #8b8b92; /* Quiet White 55% — secondary text, micro-caps */
+  --text-1: #e9e9ec; /* Voice White — primary body */
+  --text-0: #ffffff; /* Pure White — display headlines + wordmark ONLY */
+  --cyan-1: #00e5ff; /* Electric Cyan — live / correct / actionable */
+  --cyan-2: #00b8cc; /* Deep Current — cyan hover/active shift */
+  --cyan-glow: rgba(0, 229, 255, 0.1); /* the only permitted glow */
+  --warn-1: #b84a3a; /* Fault — the failure state ONLY (§2.2) */
+
+  /* ── Typography (§3.2) ────────────────────────────────────────── */
+  /* Font stacks: licensed superfamily lands in M7; metric-compatible
+     system fallbacks carry the build until then (08 §2). */
+  --font-display: 'Neue Haas Grotesk Display', 'Helvetica Neue', Inter, system-ui, sans-serif;
+  --font-text: Inter, 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+
+  --type-display-1: clamp(4.5rem, 3rem + 6vw, 8rem);       /* 72→128 */
+  --type-display-2: clamp(3rem, 2rem + 4vw, 5rem);          /* 48→80 */
+  --type-display-3: clamp(2rem, 1.5rem + 2vw, 3rem);        /* 32→48 */
+  --type-title-1: 1.5rem;                                    /* 24 */
+  --type-body-1: 1.125rem;                                   /* 18 */
+  --type-body-2: 1rem;                                       /* 16 */
+  --type-caption: 0.8125rem;                                 /* 13 */
+  --type-micro: 0.6875rem;                                   /* 11 */
+
+  --leading-display-1: 0.95;
+  --leading-display-2: 1;
+  --leading-display-3: 1.1;
+  --leading-title: 1.25;
+  --leading-body-1: 1.6;
+  --leading-body-2: 1.55;
+  --leading-caption: 1.4;
+  --leading-micro: 1.2;
+
+  --tracking-display: -0.01em;
+  --tracking-micro: 0.12em;
+
+  --measure-body: 34em; /* §3.3 body measure cap */
+
+  /* ── Spacing (§4.1 — 8px base) ────────────────────────────────── */
+  --space-1: 0.5rem;   /* 8 */
+  --space-2: 1rem;     /* 16 */
+  --space-3: 1.5rem;   /* 24 */
+  --space-4: 2rem;     /* 32 */
+  --space-6: 3rem;     /* 48 */
+  --space-8: 4rem;     /* 64 */
+  --space-12: 6rem;    /* 96 */
+  --space-20: 10rem;   /* 160 */
+
+  --margin-page: clamp(1rem, 4vw, 6rem); /* 16 → 96 outer margins */
+
+  /* ── Motion (mirrors src/motion/tokens.ts — 03 §2/§3) ─────────── */
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-drift: cubic-bezier(0.33, 0, 0.15, 1);
+  --ease-current: cubic-bezier(0.65, 0, 0.15, 1);
+  --ease-strike: cubic-bezier(0.85, 0, 0.1, 1);
+  --t-1: 150ms;
+  --t-2: 250ms;
+  --t-3: 400ms;
+  --t-4: 650ms;
+  --t-5: 1000ms;
+  --t-6: 1200ms; /* ceiling — EPIC only */
+
+  /* ── Chrome ───────────────────────────────────────────────────── */
+  --z-atmosphere: 0;
+  --z-render: 10;
+  --z-human: 20;
+  --z-type: 30;
+  --z-chrome: 40;
+  --z-overlay: 50;
+}

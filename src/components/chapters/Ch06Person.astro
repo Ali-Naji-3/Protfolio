@@ -1,0 +1,52 @@
+---
+/**
+ * Chapter 06 — The Person (02 §Ch06): the quiet human beat. Cyan-free by
+ * design (04 §2.3). Copy lines are structural placeholders until Ali
+ * supplies the three true lines (05 §7).
+ */
+import ChapterShell from '@components/ChapterShell.astro';
+import { COPY } from '@content/copy';
+import { getAsset } from '@config/assets';
+
+const photo = getAsset('HUM-03/person');
+---
+
+<ChapterShell id="person">
+  <div class="person">
+    <figure data-reveal>
+      <img
+        src={photo.src}
+        alt={photo.alt}
+        width={photo.width}
+        height={photo.height}
+        loading="lazy"
+      />
+    </figure>
+    <div class="person__lines" data-reveal-group>
+      {COPY.person.lines.map((line) => <p>{line}</p>)}
+    </div>
+  </div>
+</ChapterShell>
+
+<style>
+  .person {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: var(--space-8);
+    align-items: center;
+  }
+
+  .person__lines {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    color: var(--text-1);
+    font-size: var(--type-body-1);
+  }
+
+  @media (max-width: 767px) {
+    .person {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

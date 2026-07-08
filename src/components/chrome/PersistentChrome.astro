@@ -1,0 +1,188 @@
+---
+/**
+ * Persistent chrome (02 "The Index" layer): identity signal, Index menu,
+ * Contact escape hatch, sound toggle mount, and the 1px progress hairline.
+ * Present from the first frame; satisfies the 8-second rule (01 §4).
+ *
+ * No-JS: the Index is a native <details> disclosure and Contact is a plain
+ * anchor — fully functional before any island hydrates. M5 upgrades the
+ * menu presentation and drives the progress hairline.
+ */
+import { CHAPTERS, SITE } from '@config/site';
+---
+
+<header class="chrome" data-chrome>
+  <!-- Progress hairline — the film's timecode (width driven in M5;
+       decorative, hence aria-hidden). -->
+  <div class="chrome__progress" data-progress aria-hidden="true"></div>
+
+  <p class="chrome__identity">
+    <span class="chrome__name">{SITE.name}</span>
+    <span class="micro-caps">{SITE.role} · {SITE.focus}</span>
+  </p>
+
+  <nav class="chrome__nav" aria-label="Site">
+    <details class="chrome__index" data-index>
+      <summary class="micro-caps chrome__control">Index</summary>
+      <div class="chrome__menu" id="chapter-menu">
+        <ol class="chrome__list">
+          {
+            CHAPTERS.map((ch) => (
+              <li>
+                <a class="chrome__chapter" href={`#${ch.id}`} data-chapter-link={ch.id}>
+                  <span class="mono chrome__num">{ch.num}</span>
+                  <span class="chrome__title">{ch.title}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </details>
+
+    <a class="micro-caps chrome__control" href="#invitation">Contact</a>
+
+    <!-- Sound toggle mount — hidden until the audio island (M5) hydrates;
+         audio is off by default and opt-in only (06 §2). -->
+    <button
+      class="micro-caps chrome__control chrome__sound"
+      data-sound-toggle
+      hidden
+      aria-pressed="false"
+    >
+      Sound
+    </button>
+  </nav>
+</header>
+
+<style>
+  .chrome {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: var(--z-chrome);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: var(--space-3) var(--margin-page);
+    pointer-events: none;
+  }
+
+  .chrome > * {
+    pointer-events: auto;
+  }
+
+  /* Scrim: the chrome always reads over passing content, without a box. */
+  .chrome::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 -40px 0;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.96) 45%, transparent);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .chrome__progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 1px;
+    width: 0%;
+    background: var(--cyan-1);
+    pointer-events: none;
+  }
+
+  .chrome__identity {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: none;
+  }
+
+  .chrome__name {
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--text-0);
+    letter-spacing: var(--tracking-display);
+  }
+
+  .chrome__nav {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+  }
+
+  .chrome__control {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-2);
+    transition: color var(--t-1) var(--ease-drift);
+  }
+
+  .chrome__control:hover {
+    color: var(--text-1);
+  }
+
+  summary.chrome__control {
+    list-style: none;
+  }
+
+  summary.chrome__control::-webkit-details-marker {
+    display: none;
+  }
+
+  .chrome__menu {
+    position: absolute;
+    right: var(--margin-page);
+    top: calc(100% + var(--space-2));
+    background: var(--ink-1);
+    border: 1px solid var(--line-1);
+    padding: var(--space-3);
+    min-width: 16rem;
+  }
+
+  .chrome__list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chrome__chapter {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--line-1);
+    color: var(--text-2);
+    transition: color var(--t-2) var(--ease-drift);
+  }
+
+  .chrome__chapter:hover .chrome__title {
+    color: var(--text-0);
+  }
+
+  .chrome__chapter:hover .chrome__num {
+    color: var(--cyan-1);
+  }
+
+  .chrome__num {
+    font-size: var(--type-micro);
+  }
+
+  .chrome__title {
+    font-size: var(--type-title-1);
+    font-family: var(--font-display);
+    transition: color var(--t-2) var(--ease-drift);
+  }
+
+  @media (max-width: 767px) {
+    .chrome {
+      padding: var(--space-2);
+    }
+
+    .chrome__menu {
+      right: var(--space-2);
+    }
+  }
+</style>

@@ -1,0 +1,86 @@
+---
+/**
+ * Base layout: document head, SEO metadata, JSON-LD, skip link.
+ * Governed by docs/production/08-technical-architecture.md §3–§4.
+ * All content inside is server-rendered — no JS required to read the story.
+ */
+import '@styles/global.css';
+import { SITE } from '@config/site';
+import { getAsset } from '@config/assets';
+
+interface Props {
+  /** Page title; defaults to the site title. */
+  title?: string;
+  description?: string;
+  /** Path to the OG image for this page/section (MD-01). */
+  ogImage?: string;
+}
+
+const {
+  title = SITE.title,
+  description = SITE.description,
+  ogImage = getAsset('MD-01/og').src,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, SITE.url).href;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Person',
+      name: 'Ali Naji',
+      jobTitle: SITE.role,
+      description: SITE.description,
+      url: SITE.url,
+      knowsAbout: [...SITE.stack, 'Backend Engineering', 'System Design'],
+      sameAs: ['https://github.com/Ali-Naji-3'],
+    },
+    {
+      '@type': 'WebSite',
+      name: SITE.title,
+      url: SITE.url,
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+
+    <!-- Open Graph / Twitter (08 §4) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(ogImage, SITE.url).href} />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body>
+    <a href="#content" class="skip-link">Skip to content</a>
+    <!-- Atmosphere canvas — populated lazily by the motion system on
+         capable desktop viewports only; inert everywhere else. -->
+    <canvas class="atmosphere" data-atmosphere aria-hidden="true"></canvas>
+    <!-- Letterbox bars (10 §rules 4/9) — engaged by the cinema module
+         during scene moments; inert (height 0) otherwise. -->
+    <div class="letterbox" aria-hidden="true">
+      <span data-letterbox></span>
+      <span data-letterbox></span>
+    </div>
+    <slot />
+    <script>
+      import '@motion/main';
+    </script>
+  </body>
+</html>

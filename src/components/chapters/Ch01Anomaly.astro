@@ -1,0 +1,87 @@
+---
+/**
+ * Chapter 01 — The Anomaly (02 §Ch01). M2: the scroll-scrubbed HeroStage
+ * replaces the static poster. src/motion/hero.ts pins this section and
+ * scrubs the dramatization; without JS (or with reduced motion) the
+ * server-rendered state is the complete story.
+ */
+import ChapterShell from '@components/ChapterShell.astro';
+import HeroStage from '@components/islands/HeroStage.astro';
+import { COPY } from '@content/copy';
+import { getAsset } from '@config/assets';
+
+/* When the hero is the locked person film, the frame carries the opening
+ * alone — no dramatization subtitles/cue overlaid (approved direction).
+ * The SVG-diagram fallback keeps its timed subtitles. */
+const heroIsVideo = getAsset('SYS-01/scrub').src.length > 0;
+---
+
+<ChapterShell id="anomaly" hideCard>
+  <div class="anomaly" data-hero-mount>
+    <HeroStage />
+
+    {
+      !heroIsVideo && (
+        <>
+          {/* Delivered as timed subtitles during the scrub (10 §rule-6). */}
+          <div class="anomaly__copy">
+            <p class="subtitle anomaly__reveal" data-hero-reveal>
+              {COPY.anomaly.reveal}
+            </p>
+            <p class="subtitle anomaly__hold" data-hero-hold>
+              {COPY.anomaly.hold}
+            </p>
+          </div>
+
+          <p class="anomaly__cue micro-caps" data-hero-cue aria-hidden="true">
+            <span class="anomaly__cue-line" />
+            {COPY.anomaly.scrollCue}
+          </p>
+        </>
+      )
+    }
+  </div>
+</ChapterShell>
+
+<style>
+  .anomaly {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-6);
+    padding-top: var(--space-8);
+  }
+
+  .anomaly__copy {
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 40rem;
+  }
+
+  .anomaly__reveal {
+    font-size: var(--type-title-1);
+    line-height: var(--leading-title);
+  }
+
+  .anomaly__hold {
+    color: var(--text-2);
+    text-shadow: none;
+  }
+
+  .anomaly__cue {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    align-self: center;
+  }
+
+  .anomaly__cue-line {
+    width: 1px;
+    height: var(--space-4);
+    background: var(--cyan-1);
+  }
+</style>

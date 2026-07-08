@@ -1,0 +1,175 @@
+---
+/**
+ * Chapter 07 — The Invitation (02 §Ch07): the one ask + the ledger.
+ * The CTA is the ONLY filled button in the experience (04 §8).
+ * Ledger works fully without JS (mailto + plain links); the click-to-copy
+ * enhancement hydrates in M5.
+ */
+import ChapterShell from '@components/ChapterShell.astro';
+import { COPY } from '@content/copy';
+import { CONTACT, SITE } from '@config/site';
+import { getAsset } from '@config/assets';
+
+const portrait = getAsset('HUM-02/address');
+---
+
+<ChapterShell id="invitation">
+  <div class="invitation">
+    <div class="invitation__address">
+      <figure class="invitation__portrait">
+        <img
+          src={portrait.src}
+          alt={portrait.alt}
+          width={portrait.width}
+          height={portrait.height}
+          loading="lazy"
+        />
+      </figure>
+      <div class="invitation__lines" data-reveal>
+        {COPY.invitation.address.map((line) => <p>{line}</p>)}
+        <a class="invitation__cta" href={`mailto:${CONTACT.email}`}>
+          {COPY.invitation.cta}
+        </a>
+      </div>
+    </div>
+
+    <dl class="invitation__ledger" data-reveal-group>
+      <div>
+        <dt class="micro-caps">Email</dt>
+        <dd>
+          <a class="link mono" href={`mailto:${CONTACT.email}`} data-copy-email={CONTACT.email}>
+            {CONTACT.email}
+          </a>
+        </dd>
+      </div>
+      <div>
+        <dt class="micro-caps">Availability</dt>
+        <dd>{CONTACT.availability}</dd>
+      </div>
+      <div>
+        <dt class="micro-caps">Links</dt>
+        <dd class="invitation__links">
+          <a class="link" href={CONTACT.github} rel="me noopener" target="_blank">GitHub ↗</a>
+          {
+            CONTACT.linkedin && (
+              <a class="link" href={CONTACT.linkedin} rel="me noopener" target="_blank">
+                LinkedIn ↗
+              </a>
+            )
+          }
+          <a class="link" href={getAsset('DOC-01/resume').src} download>Résumé (PDF)</a>
+        </dd>
+      </div>
+      <div>
+        <dt class="micro-caps">Response</dt>
+        <dd>{CONTACT.responsePromise}</dd>
+      </div>
+    </dl>
+
+    <footer class="invitation__end">
+      <p class="invitation__wordmark">
+        <span>{SITE.name}</span>
+        <span class="invitation__underscore" data-breathe aria-hidden="true"></span>
+      </p>
+      <p class="invitation__thesis">“{COPY.invitation.endThesis}”</p>
+      <p class="micro-caps">{COPY.invitation.footer}</p>
+    </footer>
+  </div>
+</ChapterShell>
+
+<style>
+  .invitation {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-20);
+  }
+
+  .invitation__address {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: var(--space-8);
+    align-items: center;
+    min-height: 80svh;
+  }
+
+  .invitation__lines p {
+    font-family: var(--font-display);
+    font-size: var(--type-display-3);
+    line-height: var(--leading-display-3);
+    color: var(--text-0);
+    font-weight: 500;
+  }
+
+  .invitation__cta {
+    display: inline-block;
+    margin-top: var(--space-6);
+    padding: var(--space-2) var(--space-6);
+    min-height: 3.5rem;
+    border: 1px solid var(--cyan-1);
+    color: var(--text-0);
+    font-family: var(--font-text);
+    /* Cyan floods L→R on hover (04 §8 / 03 §7). */
+    background-image: linear-gradient(var(--cyan-1), var(--cyan-1));
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    transition:
+      background-size var(--t-2) var(--ease-current),
+      color var(--t-2) var(--ease-current);
+  }
+
+  .invitation__cta:hover,
+  .invitation__cta:focus-visible {
+    background-size: 100% 100%;
+    color: var(--ink-0);
+  }
+
+  .invitation__ledger {
+    display: grid;
+    gap: var(--space-4);
+    max-width: 36rem;
+  }
+
+  .invitation__ledger dd {
+    margin: var(--space-1) 0 0;
+  }
+
+  .invitation__links {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .invitation__end {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding-block: var(--space-12);
+    text-align: center;
+  }
+
+  .invitation__wordmark {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-family: var(--font-display);
+    color: var(--text-0);
+    font-weight: 500;
+  }
+
+  .invitation__underscore {
+    height: 1px;
+    background: var(--cyan-1);
+    opacity: 0.4;
+  }
+
+  .invitation__thesis {
+    color: var(--text-2);
+  }
+
+  @media (max-width: 767px) {
+    .invitation__address {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

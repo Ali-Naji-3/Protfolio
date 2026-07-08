@@ -1,0 +1,102 @@
+---
+/**
+ * Chapter 04 — The Proofs (02 §Ch04). Renders Proofs #2/#3 from the
+ * content module. Pending fields render as clearly-labeled skeleton rows —
+ * never invented content (Producer directive). The demonstration islands
+ * (DEMO-02/03) mount into [data-demo] in M3.
+ */
+import ChapterShell from '@components/ChapterShell.astro';
+import { PROOFS } from '@content/proofs';
+
+const proofs = PROOFS.slice(1); // Proof #1 lives in Chapter 02
+---
+
+<ChapterShell id="proofs">
+  <div class="proofs">
+    {
+      proofs.map((proof) => (
+        <article class="proof" aria-labelledby={`proof-${proof.id}`} data-reveal>
+          <p class="micro-caps">{proof.lens}</p>
+          <h3 class="proof__title" id={`proof-${proof.id}`}>
+            <span class="mono proof__num">{proof.num}</span> {proof.title}
+          </h3>
+          <p class="proof__emotional">{proof.emotionalRead}</p>
+
+          <div data-demo={proof.id} class="proof__demo" aria-hidden="true">
+            {/* Demonstration island mounts here (M3). */}
+          </div>
+
+          {proof.complete ? (
+            <dl class="proof__steps">
+              {proof.steps.map((step) => (
+                <div>
+                  <dt class="micro-caps">{step.label}</dt>
+                  <dd>{step.text}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p class="proof__pending micro-caps">
+              Full technical write-up in progress — drawn from real production
+              work, published when accurate.
+            </p>
+          )}
+
+          <p class="proof__credential micro-caps">{proof.credential}</p>
+        </article>
+      ))
+    }
+  </div>
+</ChapterShell>
+
+<style>
+  .proofs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-20);
+  }
+
+  .proof__title {
+    font-size: var(--type-display-3);
+    line-height: var(--leading-display-3);
+    margin-top: var(--space-2);
+  }
+
+  .proof__num {
+    color: var(--text-2);
+    font-size: var(--type-title-1);
+  }
+
+  .proof__emotional {
+    margin-top: var(--space-4);
+    font-size: var(--type-body-1);
+    line-height: var(--leading-body-1);
+    color: var(--text-1);
+  }
+
+  .proof__demo:empty {
+    display: none;
+  }
+
+  .proof__pending {
+    margin-top: var(--space-4);
+    border: 1px solid var(--line-1);
+    padding: var(--space-2) var(--space-3);
+    display: inline-block;
+  }
+
+  .proof__credential {
+    margin-top: var(--space-4);
+  }
+
+  .proof__steps {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .proof__steps dd {
+    margin: var(--space-1) 0 0;
+    max-width: var(--measure-body);
+  }
+</style>

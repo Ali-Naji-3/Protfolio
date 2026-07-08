@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" role="img" aria-label="System diagram: two orders converge on a stock cell reading -1">
+  <rect width="1920" height="1080" fill="#000000"/>
+  <!-- background system grid (quiet nodes) -->
+  <g stroke="#26262a" stroke-width="1" fill="none">
+    <rect x="240" y="200" width="160" height="72" rx="4"/>
+    <rect x="1520" y="200" width="160" height="72" rx="4"/>
+    <rect x="240" y="808" width="160" height="72" rx="4"/>
+    <rect x="1520" y="808" width="160" height="72" rx="4"/>
+    <path d="M320 272 V 520 H 848"/>
+    <path d="M1600 272 V 520 H 1072"/>
+    <path d="M320 808 V 560 H 848"/>
+    <path d="M1600 808 V 560 H 1072"/>
+  </g>
+  <!-- order paths -->
+  <g font-family="ui-monospace, Menlo, monospace" font-size="22" letter-spacing="3">
+    <text x="120" y="530" fill="#e9e9ec">ORDER A</text>
+    <text x="1672" y="530" fill="#e9e9ec" text-anchor="end">ORDER B</text>
+    <path d="M260 522 H 840" stroke="#8b8b92" stroke-width="1"/>
+    <path d="M1660 522 H 1080" stroke="#8b8b92" stroke-width="1"/>
+    <!-- both succeeded -->
+    <path d="M800 512 l8 10 l14 -18" stroke="#8b8b92" stroke-width="2" fill="none"/>
+    <path d="M1096 512 l8 10 l14 -18" stroke="#8b8b92" stroke-width="2" fill="none"/>
+  </g>
+  <!-- the single cyan live pulse -->
+  <path d="M320 272 V 400" stroke="#00e5ff" stroke-width="2"/>
+  <!-- focal cell: the impossible value -->
+  <rect x="848" y="468" width="224" height="108" rx="6" fill="none" stroke="#8b8b92" stroke-width="1.5"/>
+  <text x="960" y="536" font-family="ui-monospace, Menlo, monospace" font-size="40" letter-spacing="4" text-anchor="middle">
+    <tspan fill="#e9e9ec">STOCK: </tspan><tspan fill="#b84a3a">-1</tspan>
+  </text>
+  <!-- placeholder marker (removed in M7) -->
+  <text x="960" y="1020" font-family="ui-monospace, Menlo, monospace" font-size="16" letter-spacing="4" text-anchor="middle" fill="#26262a">PLACEHOLDER · SYS-01</text>
+</svg>

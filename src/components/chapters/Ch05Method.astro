@@ -1,0 +1,73 @@
+---
+/**
+ * Chapter 05 — The Method (02 §Ch05): operating principles + signals.
+ * Fully server-rendered; reveal choreography added in M5.
+ */
+import ChapterShell from '@components/ChapterShell.astro';
+import { COPY } from '@content/copy';
+---
+
+<ChapterShell id="method">
+  <div class="method">
+    <ol class="method__principles" role="list" data-reveal-group>
+      {
+        COPY.method.principles.map((p) => (
+          <li class="method__principle">
+            <h3 class="method__headline">“{p.headline}”</h3>
+            <p class="method__elaboration">{p.elaboration}</p>
+          </li>
+        ))
+      }
+    </ol>
+
+    <div class="method__signals" data-reveal>
+      <p class="micro-caps">{COPY.method.signalsTitle}</p>
+      <ul role="list">
+        {
+          COPY.method.signals.map((s) => (
+            <li>
+              <a class="link" href={s.href} rel="me noopener" target="_blank">
+                {s.label} ↗
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</ChapterShell>
+
+<style>
+  .method {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .method__principles {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .method__headline {
+    font-size: var(--type-display-3);
+    line-height: var(--leading-display-3);
+  }
+
+  .method__elaboration {
+    margin-top: var(--space-2);
+    color: var(--text-2);
+    font-size: var(--type-body-1);
+  }
+
+  .method__signals ul {
+    list-style: none;
+    padding: 0;
+    margin-top: var(--space-2);
+    display: flex;
+    gap: var(--space-4);
+  }
+</style>

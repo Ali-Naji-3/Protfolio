@@ -1,0 +1,79 @@
+---
+/**
+ * Chapter 02 — The Correction (02 §Ch02). M1: the thesis + Proof #1's
+ * static structure. The scrubbed re-architecture sequence and the
+ * interactive DEMO-01 island arrive in M2/M3 — mounted into [data-demo-01].
+ */
+import ChapterShell from '@components/ChapterShell.astro';
+import RaceDemo from '@components/islands/RaceDemo.astro';
+import { COPY } from '@content/copy';
+import { PROOFS } from '@content/proofs';
+
+const proof = PROOFS[0]!;
+---
+
+<ChapterShell id="correction">
+  <div class="correction">
+    <blockquote class="correction__thesis" data-reveal>
+      <p>“{COPY.correction.thesis}”</p>
+    </blockquote>
+
+    <div class="correction__proof">
+      <p class="micro-caps" data-reveal>{proof.lens}</p>
+      <dl class="correction__steps" data-reveal-group>
+        {
+          proof.steps.map((step) => (
+            <div class="correction__step">
+              <dt class="micro-caps">{step.label}</dt>
+              <dd>{step.text}</dd>
+            </div>
+          ))
+        }
+      </dl>
+      <p class="correction__credential micro-caps">{proof.credential}</p>
+    </div>
+
+    <!-- DEMO-01 — interactive race-condition demonstration (M3). -->
+    <div data-demo-01 data-reveal>
+      <RaceDemo />
+    </div>
+  </div>
+</ChapterShell>
+
+<style>
+  .correction {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    padding-block: var(--space-12);
+  }
+
+  .correction__thesis p {
+    font-family: var(--font-display);
+    font-size: var(--type-display-2);
+    line-height: var(--leading-display-2);
+    color: var(--text-0);
+    font-weight: 500;
+    max-width: 18em;
+  }
+
+  .correction__steps {
+    display: grid;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  .correction__step dd {
+    margin: var(--space-1) 0 0;
+    max-width: var(--measure-body);
+    color: var(--text-1);
+  }
+
+  .correction__credential {
+    margin-top: var(--space-4);
+  }
+
+  .correction__demo-hint {
+    color: var(--text-2);
+  }
+</style>

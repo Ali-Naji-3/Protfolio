@@ -1,0 +1,194 @@
+---
+/**
+ * HeroStage — the scroll-scrubbed Anomaly (02 §Ch01, EPIC beat #1).
+ *
+ * Two rendering modes, selected by the asset manager at build time:
+ *  - CODE MODE (current): the system diagram is authored as inline SVG with
+ *    addressable parts; src/motion/hero.ts scrubs it with ScrollTrigger.
+ *  - VIDEO MODE (M7): when `SYS-01/scrub` has a non-empty src, a <video>
+ *    renders above the SVG and the controller scrubs video.currentTime
+ *    instead. Swapping modes = editing src/config/assets.ts only.
+ *
+ * No-JS / reduced-motion contract: the server-rendered state below IS the
+ * complete anomaly (both orders confirmed, stock at −1). JS adds
+ * `.is-scrub` and rewinds to frame zero before scrubbing — so the story
+ * never depends on JavaScript to exist, only to move.
+ */
+import { COPY } from '@content/copy';
+import { getAsset } from '@config/assets';
+
+const scrub = getAsset('SYS-01/scrub');
+const poster = getAsset('SYS-01/poster');
+const hasVideo = scrub.kind === 'video' && scrub.src.length > 0;
+---
+
+<div class="hero" data-hero>
+  <div class="hero__stage" data-hero-stage>
+    {
+      hasVideo && (
+        <video
+          class="hero__video"
+          data-hero-video
+          src={scrub.src}
+          poster={scrub.poster}
+          muted
+          playsinline
+          preload="metadata"
+          aria-label={scrub.alt}
+        />
+      )
+    }
+
+    <svg
+      class="hero__system"
+      data-hero-system
+      viewBox="0 0 1600 900"
+      role="img"
+      aria-label={poster.alt}
+      aria-describedby="hero-desc"
+    >
+      <desc id="hero-desc">
+        Two concurrent orders both read a stock of one, both commit, and the
+        stock count falls to minus one — an impossible state caused by a
+        read-before-write race condition.
+      </desc>
+
+      <!-- Faint system grid (atmosphere, never louder than the data) -->
+      <g stroke="var(--line-1)" stroke-width="1" opacity="0.35" aria-hidden="true">
+        <line x1="0" y1="225" x2="1600" y2="225" />
+        <line x1="0" y1="450" x2="1600" y2="450" />
+        <line x1="0" y1="675" x2="1600" y2="675" />
+        <line x1="400" y1="0" x2="400" y2="900" />
+        <line x1="800" y1="0" x2="800" y2="900" />
+        <line x1="1200" y1="0" x2="1200" y2="900" />
+      </g>
+
+      <!-- ORDER A -->
+      <g data-h="orderA">
+        <rect x="120" y="170" width="360" height="120" fill="var(--ink-1)" stroke="var(--line-1)" />
+        <text x="152" y="220" class="hero__label">{COPY.anomaly.orderA}</text>
+        <text x="152" y="260" class="hero__micro" data-h="readA" opacity="0">
+          READ&#160;&#160;STOCK&#160;=&#160;1
+        </text>
+        <text x="448" y="222" text-anchor="end" class="hero__check" data-h="checkA">✓</text>
+      </g>
+
+      <!-- ORDER B -->
+      <g data-h="orderB">
+        <rect x="1120" y="170" width="360" height="120" fill="var(--ink-1)" stroke="var(--line-1)" />
+        <text x="1152" y="220" class="hero__label">{COPY.anomaly.orderB}</text>
+        <text x="1152" y="260" class="hero__micro" data-h="readB" opacity="0">
+          READ&#160;&#160;STOCK&#160;=&#160;1
+        </text>
+        <text x="1448" y="222" text-anchor="end" class="hero__check" data-h="checkB">✓</text>
+      </g>
+
+      <!-- Commit paths converging on the stock cell -->
+      <path
+        data-h="pathA"
+        d="M 300 290 C 300 470, 700 420, 738 560"
+        fill="none"
+        stroke="var(--cyan-1)"
+        stroke-width="2"
+        pathLength="1"
+      />
+      <path
+        data-h="pathB"
+        d="M 1300 290 C 1300 470, 900 420, 862 560"
+        fill="none"
+        stroke="var(--cyan-1)"
+        stroke-width="2"
+        pathLength="1"
+      />
+
+      <!-- THE STOCK CELL — the wound -->
+      <g data-h="stock">
+        <rect
+          data-h="stockCell"
+          x="660"
+          y="560"
+          width="280"
+          height="170"
+          fill="var(--ink-1)"
+          stroke="var(--line-1)"
+          stroke-width="2"
+        />
+        <text x="800" y="612" text-anchor="middle" class="hero__micro">
+          {COPY.anomaly.stockLabel}
+        </text>
+        <text
+          data-h="stockValue"
+          x="800"
+          y="694"
+          text-anchor="middle"
+          class="hero__value hero__value--fault"
+        >
+          -1
+        </text>
+      </g>
+
+      <!-- The flash — EPIC beat, fires once at the fault (03 §6) -->
+      <rect data-h="flash" x="0" y="0" width="1600" height="900" fill="var(--warn-1)" opacity="0" aria-hidden="true" />
+    </svg>
+  </div>
+</div>
+
+<style>
+  .hero {
+    position: relative;
+  }
+
+  .hero__stage {
+    position: relative;
+    overflow: hidden; /* the dolly push-in stays inside the frame */
+    border: 1px solid var(--line-1);
+  }
+
+  .hero__video {
+    width: 100%;
+    display: block;
+  }
+
+  /* When the final video exists, it replaces the SVG visually — the SVG
+     stays in the DOM as the no-JS/reduced-motion fallback narrative. */
+  .hero__video + .hero__system {
+    display: none;
+  }
+
+  .hero__system {
+    width: 100%;
+    height: auto;
+    background: var(--ink-0);
+  }
+
+  .hero__label {
+    font-family: var(--font-mono);
+    font-size: 30px;
+    letter-spacing: 0.12em;
+    fill: var(--text-1);
+  }
+
+  .hero__micro {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    letter-spacing: 0.14em;
+    fill: var(--text-2);
+  }
+
+  .hero__check {
+    font-family: var(--font-mono);
+    font-size: 34px;
+    fill: var(--cyan-1);
+  }
+
+  .hero__value {
+    font-family: var(--font-mono);
+    font-size: 84px;
+    font-weight: 500;
+    fill: var(--text-0);
+  }
+
+  .hero__value--fault {
+    fill: var(--warn-1);
+  }
+</style>
