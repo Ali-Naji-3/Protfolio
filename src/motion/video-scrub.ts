@@ -15,7 +15,15 @@ export interface ScrubVideoOptions {
 
 const ASSUMED_FPS = 24;
 const FRAME_DELTA_S = 1 / ASSUMED_FPS;
-const PRELOAD_LEAD_START = 'top bottom+=80%';
+// A scroll-distance lead only buys real buffering *time* if the visitor
+// scrolls at a bounded rate. The Hero never shows this gap because its
+// trigger's start point sits above the initial scroll position, so it fires
+// at parse time — before any scrolling — and gets the cold-open + reaction
+// time as a free head start. Deeper scenes get no such head start, so the
+// lead must be generous in scroll distance to survive a fast wheel/trackpad
+// flick on a cold connection. One token, applied uniformly to every footage
+// scene — not a per-scene tune.
+const PRELOAD_LEAD_START = 'top bottom+=350%';
 
 /** Landscape fills the frame (cover); portrait shows the full frame (contain) — never crop, never distort. */
 export function computeObjectFit(width: number, height: number): 'cover' | 'contain' {

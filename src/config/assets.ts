@@ -122,6 +122,7 @@ const REGISTRY = {
     alt: 'Inside the system: an abstract backend becomes visible as light travels through its channels.',
     src: '/assets/videos/system-world.mp4',
     type: 'video/mp4',
+    poster: '/assets/videos/system-world-poster.jpg',
     placeholder: false,
   },
   /** Author Reveal — final production slot (Kling, identity-anchored).
@@ -135,6 +136,7 @@ const REGISTRY = {
     alt: 'Ali Naji — the engineer behind the system, standing calmly in a dark architectural space as the camera slowly moves in.',
     src: '/assets/videos/author-reveal.mp4',
     type: 'video/mp4',
+    poster: '/assets/videos/author-reveal-poster.jpg',
     placeholder: false,
   },
   'SCN-04/open': sceneSlot('SCN-04/open', 'Further proofs, drawn from real production work.'),
@@ -150,6 +152,7 @@ const REGISTRY = {
     alt: 'The invitation — a quiet, open architectural space holding a single point of light, calm and unhurried.',
     src: '/assets/videos/invitation.mp4',
     type: 'video/mp4',
+    poster: '/assets/videos/invitation-poster.jpg',
     placeholder: false,
   },
 
