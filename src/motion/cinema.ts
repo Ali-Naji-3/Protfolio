@@ -18,6 +18,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { DURATION, EASE_GSAP } from './tokens';
 import { on } from './bus';
+import { scrubVideo } from './video-scrub';
 
 const SESSION_KEY = 'an:open-seen';
 
@@ -38,9 +39,10 @@ function setBars(active: boolean): void {
 }
 
 /* ── cold open ─────────────────────────────────────────────────── */
-function coldOpen(): void {
+function coldOpen(): () => void {
+  const noop = (): void => {};
   const overlay = document.querySelector<HTMLElement>('[data-cold-open]');
-  if (!overlay) return;
+  if (!overlay) return noop;
 
   let seen = false;
   try {
@@ -48,7 +50,7 @@ function coldOpen(): void {
   } catch {
     seen = false;
   }
-  if (seen) return;
+  if (seen) return noop;
 
   overlay.hidden = false;
   setBars(true);
@@ -74,20 +76,86 @@ function coldOpen(): void {
   tl.to(overlay, { opacity: 0, duration: DURATION.t5, ease: EASE_GSAP.glide }, '>+0.2');
 
   const skip = () => tl.progress(1);
-  (['wheel', 'pointerdown', 'keydown', 'touchstart', 'scroll'] as const).forEach((ev) =>
-    window.addEventListener(ev, skip, { once: true, passive: true }),
-  );
+  const skipEvents = ['wheel', 'pointerdown', 'keydown', 'touchstart', 'scroll'] as const;
+  skipEvents.forEach((ev) => window.addEventListener(ev, skip, { once: true, passive: true }));
+
+  return () => {
+    tl.kill();
+    skipEvents.forEach((ev) => window.removeEventListener(ev, skip));
+  };
 }
 
 /* ── scene cards ───────────────────────────────────────────────── */
-function scenes(): void {
+/* Pinned footage scenes hold the frame for a full cinematic beat, same
+   contract as the Hero: scroll is the timeline, the section releases only
+   after the clip's final frame (delegated to video-scrub.ts). */
+const FOOTAGE_PIN_END = '+=170%';
+
+function scenes(): Array<() => void> {
+  const teardowns: Array<() => void> = [];
+
   document.querySelectorAll<HTMLElement>('[data-scene-open]').forEach((scene) => {
     const title = scene.querySelector<HTMLElement>('[data-scene-title]');
     const ghost = scene.querySelector<HTMLElement>('[data-scene-ghost]');
+    const footage = scene.querySelector<HTMLVideoElement>('[data-scene-footage]');
 
+    if (footage) {
+      if (title) {
+        /* rise, hold through the beat, dissolve before the frame releases —
+           mapped onto the same pinned range as the footage, not a separate one */
+        const tl = gsap.timeline({
+          scrollTrigger: { trigger: scene, start: 'top top', end: FOOTAGE_PIN_END, scrub: true },
+        });
+        tl.fromTo(
+          title,
+          { opacity: 0, y: 48 },
+          { opacity: 1, y: 0, ease: EASE_GSAP.glide, duration: 0.15 },
+        )
+          .to(title, { opacity: 1, y: 0, duration: 0.55 })
+          .to(title, { opacity: 0, y: -32, ease: EASE_GSAP.drift, duration: 0.15 });
+        teardowns.push(() => {
+          tl.scrollTrigger?.kill();
+          tl.kill();
+        });
+      }
+
+      if (ghost) {
+        /* the camera move, same held range as the footage */
+        const parallax = gsap.fromTo(
+          ghost,
+          { yPercent: 18 },
+          {
+            yPercent: -18,
+            ease: 'none',
+            scrollTrigger: { trigger: scene, start: 'top top', end: FOOTAGE_PIN_END, scrub: true },
+          },
+        );
+        teardowns.push(() => {
+          parallax.scrollTrigger?.kill();
+          parallax.kill();
+        });
+      }
+
+      /* pin is presentation only — video-scrub.ts still initializes,
+         preloads and scrubs correctly if pin were ever removed */
+      teardowns.push(
+        scrubVideo(footage, {
+          trigger: scene,
+          start: 'top top',
+          end: FOOTAGE_PIN_END,
+          pin: true,
+          anticipatePin: 1,
+          onToggle: (active) => setBars(active),
+          manageFit: true,
+        }),
+      );
+      return;
+    }
+
+    /* placeholder cards (no footage yet): no timeline to scrub, so no pin —
+       original in-place scroll grammar */
     if (title) {
-      /* entrance — the frame settles */
-      gsap.fromTo(
+      const enter = gsap.fromTo(
         title,
         { opacity: 0, y: 48 },
         {
@@ -97,18 +165,22 @@ function scenes(): void {
           scrollTrigger: { trigger: scene, start: 'top 75%', end: 'top 25%', scrub: true },
         },
       );
-      /* exit — dissolve upward as the next shot arrives */
-      gsap.to(title, {
+      const exit = gsap.to(title, {
         opacity: 0,
         y: -32,
         ease: EASE_GSAP.drift,
         scrollTrigger: { trigger: scene, start: 'bottom 55%', end: 'bottom 25%', scrub: true },
       });
+      teardowns.push(() => {
+        enter.scrollTrigger?.kill();
+        enter.kill();
+        exit.scrollTrigger?.kill();
+        exit.kill();
+      });
     }
 
     if (ghost) {
-      /* the camera move: numeral travels slower than the page */
-      gsap.fromTo(
+      const parallax = gsap.fromTo(
         ghost,
         { yPercent: 18 },
         {
@@ -117,39 +189,36 @@ function scenes(): void {
           scrollTrigger: { trigger: scene, start: 'top bottom', end: 'bottom top', scrub: true },
         },
       );
+      teardowns.push(() => {
+        parallax.scrollTrigger?.kill();
+        parallax.kill();
+      });
     }
 
-    /* Scene footage inherits the hero's dolly grammar (10 §rule-2): a slow
-       scrubbed push-in so scrolling THROUGH the scene reads as moving through
-       it, not watching a flat autoplay loop. Purely a camera move — the
-       looping backdrop keeps playing underneath. */
-    const footage = scene.querySelector<HTMLElement>('[data-scene-footage]');
-    if (footage) {
-      gsap.fromTo(
-        footage,
-        { scale: 1.04, transformOrigin: '50% 50%' },
-        {
-          scale: 1.12,
-          ease: 'none',
-          scrollTrigger: { trigger: scene, start: 'top bottom', end: 'bottom top', scrub: true },
-        },
-      );
-    }
-
-    ScrollTrigger.create({
+    const letterboxTrigger = ScrollTrigger.create({
       trigger: scene,
       start: 'top 55%',
       end: 'bottom 45%',
       onToggle: (self) => setBars(self.isActive),
     });
+    teardowns.push(() => letterboxTrigger.kill());
   });
+
+  return teardowns;
 }
 
-export function initCinema(): void {
-  coldOpen();
-  scenes();
+/* Stable references: re-subscribing the same fn on repeated initCinema()
+   calls (HMR) is a no-op (bus.ts stores handlers in a Set), so this needs
+   no unsubscribe path. */
+const barsIn = (): void => setBars(true);
+const barsOut = (): void => setBars(false);
+
+export function initCinema(): () => void {
+  const teardowns = [coldOpen(), ...scenes()];
 
   /* the hero pin holds the frame too */
-  on('cinema:bars-in', () => setBars(true));
-  on('cinema:bars-out', () => setBars(false));
+  on('cinema:bars-in', barsIn);
+  on('cinema:bars-out', barsOut);
+
+  return () => teardowns.forEach((fn) => fn());
 }

@@ -163,8 +163,9 @@ async function verifyDesktop(browser) {
     );
     assert(
       (await footage.getAttribute('playsinline')) !== null &&
-        (await footage.getAttribute('loop')) !== null,
-      `${name} loops inline as a backdrop`,
+        (await footage.getAttribute('loop')) === null &&
+        (await footage.getAttribute('autoplay')) === null,
+      `${name} scrubs via scroll, no autoplay/loop`,
     );
   }
 

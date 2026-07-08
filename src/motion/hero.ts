@@ -15,23 +15,24 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { DURATION, EASE_GSAP } from './tokens';
 import { emit } from './bus';
+import { scrubVideo } from './video-scrub';
 
 const q = <T extends Element>(root: Element, sel: string): T | null =>
   root.querySelector<T>(sel);
 
-export function initHero(): void {
+export function initHero(): () => void {
+  const noop = (): void => {};
   const mount = document.querySelector<HTMLElement>('[data-hero-mount]');
   const section = document.querySelector<HTMLElement>('#anomaly');
-  if (!mount || !section) return;
+  if (!mount || !section) return noop;
 
   const video = q<HTMLVideoElement>(mount, '[data-hero-video]');
   if (video) {
-    initVideoScrub(section, video);
-    return;
+    return initVideoScrub(section, video);
   }
 
   const system = q<SVGSVGElement>(mount, '[data-hero-system]');
-  if (!system) return;
+  if (!system) return noop;
 
   const part = (name: string) => q<SVGElement>(system, `[data-h="${name}"]`);
   const pathA = part('pathA');
@@ -46,7 +47,7 @@ export function initHero(): void {
   const reveal = q<HTMLElement>(mount, '[data-hero-reveal]');
   const hold = q<HTMLElement>(mount, '[data-hero-hold]');
   const cue = q<HTMLElement>(mount, '[data-hero-cue]');
-  if (!pathA || !pathB || !stockValue || !flash) return;
+  if (!pathA || !pathB || !stockValue || !flash) return noop;
 
   /* Rewind to frame zero (server-rendered state is the FINAL frame). */
   gsap.set([pathA, pathB], { strokeDasharray: 1, strokeDashoffset: 1 });
@@ -112,52 +113,45 @@ export function initHero(): void {
     .to(hold, { opacity: 1, y: 0, duration: DURATION.t4, ease: EASE_GSAP.glide }, 3.1);
 
   /* The cue breathes until the visitor commits to the scroll. */
+  let cueTrigger: ScrollTrigger | undefined;
+  let cueBreathe: gsap.core.Tween | undefined;
   if (cue) {
-    gsap.to(cue, {
+    cueBreathe = gsap.to(cue, {
       opacity: 0.4,
       duration: 3,
       ease: 'sine.inOut',
       yoyo: true,
       repeat: -1,
     });
-    ScrollTrigger.create({
+    cueTrigger = ScrollTrigger.create({
       trigger: section,
       start: 'top top-=1',
       onEnter: () => gsap.to(cue, { autoAlpha: 0, duration: DURATION.t2, overwrite: 'auto' }),
       onLeaveBack: () => gsap.to(cue, { autoAlpha: 1, duration: DURATION.t3, overwrite: 'auto' }),
     });
   }
+
+  return () => {
+    tl.scrollTrigger?.kill();
+    tl.kill();
+    cueTrigger?.kill();
+    cueBreathe?.kill();
+  };
 }
 
 /**
- * Video hero: scrub the MP4's currentTime with the same pin the SVG hero
- * used. The pin + letterbox are created immediately so the held frame and
- * scene grammar behave identically whether or not metadata has loaded yet;
- * currentTime scrubbing engages once the duration is known. Requires a
- * keyframe-dense encode (05 §3.2) for smooth seeking.
+ * Video hero: same pin the SVG hero used, but scrubbing is delegated to the
+ * shared video-scrub module (single source of truth for currentTime/seek/
+ * metadata handling — see video-scrub.ts).
  */
-function initVideoScrub(section: HTMLElement, video: HTMLVideoElement): void {
-  ScrollTrigger.create({
+function initVideoScrub(section: HTMLElement, video: HTMLVideoElement): () => void {
+  return scrubVideo(video, {
     trigger: section,
     start: 'top top',
     end: '+=250%',
     pin: true,
-    scrub: true,
     anticipatePin: 1,
     /* held frame → letterbox engages, same as the SVG hero (10 §4) */
-    onToggle: (self) => emit(self.isActive ? 'cinema:bars-in' : 'cinema:bars-out'),
-    onUpdate: (self) => {
-      if (Number.isFinite(video.duration) && video.duration > 0) {
-        video.currentTime = self.progress * video.duration;
-      }
-    },
+    onToggle: (active) => emit(active ? 'cinema:bars-in' : 'cinema:bars-out'),
   });
-
-  /* When metadata arrives after first paint, refresh so the pin measures
-     against the settled layout. */
-  video.addEventListener(
-    'loadedmetadata',
-    () => ScrollTrigger.refresh(),
-    { once: true },
-  );
 }

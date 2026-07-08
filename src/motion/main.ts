@@ -23,7 +23,22 @@ import { initProgress } from './progress';
 import { initAudio } from './audio';
 import { initAtmosphere } from './atmosphere';
 
+/* Re-entry guard: HMR re-executes this module; a stray double-boot must
+   never register a second set of listeners/triggers on the live document. */
+const bootWindow = window as unknown as { __motionBooted?: boolean };
+
 function boot(): void {
+  if (bootWindow.__motionBooted) return;
+  bootWindow.__motionBooted = true;
+
+  /* Registered once, unconditionally, so every return path (including the
+     reduced-motion early exit) still clears the guard on HMR dispose —
+     the body is reassigned below once there's more to tear down. */
+  let teardown = (): void => {
+    bootWindow.__motionBooted = false;
+  };
+  import.meta.hot?.dispose(() => teardown());
+
   /* Functional enhancements — motion preference does not gate function. */
   initDemo();
   initAudio();
@@ -38,8 +53,9 @@ function boot(): void {
     duration: SCROLL.desktopLerpDurationS,
     touchMultiplier: 1.2,
   });
+  const tick = (time: number): void => lenis.raf(time * 1000);
   lenis.on('scroll', ScrollTrigger.update);
-  gsap.ticker.add((time) => lenis.raf(time * 1000));
+  gsap.ticker.add(tick);
   gsap.ticker.lagSmoothing(0);
 
   /* Expose for programmatic control (verification harness, debugging).
@@ -66,14 +82,32 @@ function boot(): void {
   /* ORDER MATTERS: the hero creates the page's only PIN, and ScrollTrigger
      recalculates in creation order — pin-owning triggers must exist before
      any trigger positioned below the pin, or their offsets go stale. */
-  initHero();
-  initCinema();
+  const heroTeardown = initHero();
+  const cinemaTeardown = initCinema();
   initReveals();
   initProgress();
   initAtmosphere();
 
   /* Layout settles (fonts, images) → measurements refresh once. */
-  window.addEventListener('load', () => ScrollTrigger.refresh());
+  const onLoad = (): void => {
+    ScrollTrigger.refresh();
+  };
+  window.addEventListener('load', onLoad);
+
+  /* Dev HMR: tear down everything this boot registered before the module
+     re-executes, so re-init never stacks duplicate triggers/listeners.
+     initReveals/initProgress/initAtmosphere aren't individually collected
+     (out of scope for this pass) but their ScrollTriggers are still caught
+     by the blanket kill below. */
+  teardown = (): void => {
+    heroTeardown();
+    cinemaTeardown();
+    ScrollTrigger.getAll().forEach((t) => t.kill());
+    gsap.ticker.remove(tick);
+    lenis.destroy();
+    window.removeEventListener('load', onLoad);
+    bootWindow.__motionBooted = false;
+  };
 }
 
 /** Click-to-copy on the email ledger row (02 §Ch07). */

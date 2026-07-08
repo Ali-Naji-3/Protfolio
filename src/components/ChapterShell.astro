@@ -43,9 +43,8 @@ const hasFootage = scene !== null && scene.src.length > 0;
             data-scene-footage
             src={scene.src}
             poster={scene.poster}
+            preload="metadata"
             muted
-            loop
-            autoplay
             playsinline
             aria-label={scene.alt}
           />
@@ -92,7 +91,11 @@ const hasFootage = scene !== null && scene.src.length > 0;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* Safe default for reduced-motion/no-JS: never crop. JS derives the
+       real fit (cover for landscape, contain for portrait) from the
+       decoded frame once scrubVideo takes over (video-scrub.ts). */
+    object-fit: contain;
+    object-position: center;
     opacity: 0.55; /* footage stays behind the title, always legible */
   }
 
