@@ -22,10 +22,10 @@ for name in "${files[@]}"; do
     continue
   fi
 
-  tmp="$VIDEO_DIR/.${name}.tmp"
+  tmp="$VIDEO_DIR/tmp_${name}"
   echo "encoding $name..."
-  ffmpeg -y -i "$src" -c:v libx264 -crf 18 -preset slow \
-    -g 6 -keyint_min 6 -sc_threshold 0 \
+  ffmpeg -y -i "$src" -c:v libx264 -crf 22 -preset slow \
+    -g 12 -keyint_min 12 -sc_threshold 0 -bf 0 \
     -pix_fmt yuv420p -movflags +faststart -an "$tmp"
 
   # Atomic replace: if ffmpeg fails above, set -e aborts before mv and the
