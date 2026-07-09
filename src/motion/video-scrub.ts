@@ -131,6 +131,44 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
       if (video.readyState < 1) {
         metadataReady = false;
         video.load();
+      } else {
+        /**
+         * ── PIPELINE WAKEUP (MICRO-SEEK) ─────────────────────────────────────
+         * Why it exists:
+         * Under standard browser behavior (especially WebKit/Safari/iOS), when a
+         * video is initially rendered with preload="metadata", the browser loads
+         * the metadata and suspends the pipeline immediately. Setting preload="auto"
+         * dynamically later is typically ignored as an inactive hint.
+         *
+         * How it works:
+         * To force the browser to resume fetching and prime the decode pipeline before
+         * the user visually enters the scene, we execute a micro-seek to 0.001 seconds.
+         * This forces the media pipeline to fetch the initial byte range from Vercel
+         * via HTTP 206, and places the decoded first frame directly into hot memory.
+         *
+         * Ownership contract:
+         * - This is NOT a user-visible seek; it is a one-time pipeline initialization.
+         * - Because the preloadTrigger fires far upstream (top bottom+=350%) and runs
+         *   exactly once (once: true), the active scrub Trigger is guaranteed to be
+         *   inactive (self.isActive === false). Playback control remains completely
+         *   undisputed. Modern scrub coordinates overwrite currentTime instantly 
+         *   upon entering the viewport.
+         * - Future maintainers: DO NOT remove this. It prevents the white/black frame
+         *   Vercel loading delay on deep scroll entries.
+         *
+         * Timing selection:
+         * We use setTimeout(wakeup, 0) to push this seek to the end of the current
+         * event loop queue. Waking up the media element starts network I/O and hardware
+         * decoding overhead. By using setTimeout instead of requestAnimationFrame (which
+         * executes during visual rendering pipeline phases) or queueMicrotask (which
+         * runs prior to paints), we prevent main-thread layout/scroll stutter.
+         */
+        const wakeup = () => {
+          if (video.currentTime === 0) {
+            video.currentTime = 0.001;
+          }
+        };
+        setTimeout(wakeup, 0);
       }
     },
   });
