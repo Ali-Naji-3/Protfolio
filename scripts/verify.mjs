@@ -148,18 +148,18 @@ async function verifyDesktop(browser) {
   );
 
   /* Final scene footage: each locked/production scene card carries its
-     asset at the final self-hosted path, muted/looping/playsinline. */
+     asset (served from the R2 CDN), muted/looping/playsinline. */
   const SCENE_FOOTAGE = [
-    ['Engineering World', '#correction', '/assets/videos/system-world.mp4'],
-    ['Author Reveal', '#author', '/assets/videos/author-reveal.mp4'],
-    ['Invitation', '#invitation', '/assets/videos/invitation.mp4'],
+    ['Engineering World', '#correction', 'system-world.mp4'],
+    ['Author Reveal', '#author', 'author-reveal.mp4'],
+    ['Invitation', '#invitation', 'invitation.mp4'],
   ];
-  for (const [name, sel, src] of SCENE_FOOTAGE) {
+  for (const [name, sel, file] of SCENE_FOOTAGE) {
     const footage = page.locator(`${sel} [data-scene-footage]`);
     assert((await footage.count()) === 1, `${name} footage mounted on ${sel}`);
     assert(
-      (await footage.getAttribute('src')) === src,
-      `${name} points at the final self-hosted path`,
+      (await footage.getAttribute('src'))?.endsWith(`/${file}`) === true,
+      `${name} points at the ${file} CDN asset`,
     );
     assert(
       (await footage.getAttribute('playsinline')) !== null &&
@@ -182,8 +182,8 @@ async function verifyDesktop(browser) {
     const v = page.locator('[data-hero-video]');
     assert((await v.count()) === 1, 'hero video element present');
     assert(
-      (await v.getAttribute('src')) === '/assets/videos/hero.mp4',
-      'hero video points at the final self-hosted path',
+      (await v.getAttribute('src'))?.endsWith('/hero.mp4') === true,
+      'hero video points at the hero.mp4 CDN asset',
     );
     assert((await v.getAttribute('poster'))?.startsWith('/assets/videos/'), 'hero poster wired');
     assert((await v.getAttribute('muted')) !== null || (await v.evaluate((el) => el.muted)), 'hero video muted');

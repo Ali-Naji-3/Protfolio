@@ -45,6 +45,13 @@ function sceneSlot(id: string, alt: string): AssetDef {
 }
 
 /**
+ * Scene MP4 origin. Served from Cloudflare R2 (not /public) so a cold Vercel
+ * edge never gates the footage. To move to a custom domain (e.g.
+ * 'https://cdn.alinaji.dev') change ONLY this constant. Posters stay local.
+ */
+const VIDEO_BASE = 'https://pub-e232dbc6a6a74ea69a43d9ae7728e912.r2.dev';
+
+/**
  * The registry. IDs mirror 05 §2.
  * Placeholder files are code-authored SVGs on the Visual Bible palette —
  * crisp, zero-credit, and honest about being placeholders.
@@ -71,7 +78,7 @@ const REGISTRY = {
     id: 'SYS-01/scrub',
     kind: 'video',
     alt: 'Ali Naji — a slow cinematic camera orbit through a dark, minimal architectural space.',
-    src: '/assets/videos/hero.mp4',
+    src: `${VIDEO_BASE}/hero.mp4`,
     type: 'video/mp4',
     poster: '/assets/videos/hero-poster.jpg',
     placeholder: false,
@@ -120,7 +127,7 @@ const REGISTRY = {
     id: 'SCN-02/open',
     kind: 'video',
     alt: 'Inside the system: an abstract backend becomes visible as light travels through its channels.',
-    src: '/assets/videos/system-world.mp4',
+    src: `${VIDEO_BASE}/system-world.mp4`,
     type: 'video/mp4',
     poster: '/assets/videos/system-world-poster.jpg',
     placeholder: false,
@@ -134,7 +141,7 @@ const REGISTRY = {
     id: 'SCN-03/open',
     kind: 'video',
     alt: 'Ali Naji — the engineer behind the system, standing calmly in a dark architectural space as the camera slowly moves in.',
-    src: '/assets/videos/author-reveal.mp4',
+    src: `${VIDEO_BASE}/author-reveal.mp4`,
     type: 'video/mp4',
     poster: '/assets/videos/author-reveal-poster.jpg',
     placeholder: false,
@@ -150,7 +157,7 @@ const REGISTRY = {
     id: 'SCN-07/open',
     kind: 'video',
     alt: 'The invitation — a quiet, open architectural space holding a single point of light, calm and unhurried.',
-    src: '/assets/videos/invitation.mp4',
+    src: `${VIDEO_BASE}/invitation.mp4`,
     type: 'video/mp4',
     poster: '/assets/videos/invitation-poster.jpg',
     placeholder: false,
