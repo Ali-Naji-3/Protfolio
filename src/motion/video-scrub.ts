@@ -160,6 +160,27 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
     }
   };
 
+  // One-time pipeline wakeup (micro-seek). Forces the media element to resume
+  // fetching and prime the decode pipeline before the visitor reaches the
+  // scene, avoiding the white/black first-frame delay on deep scroll entries.
+  // Gated on the preload trigger having fired AND metadata being present.
+  // Never calls video.load(): on a cold connection the metadata/body fetch may
+  // still be in flight when the preload trigger fires, and load() would abort
+  // it and restart resource selection — the RCA-confirmed harm in the network-
+  // bound slow path. If metadata isn't ready yet, onLoadedMetadata retries this.
+  let preloadFired = false;
+  let wokeUp = false;
+  const primePipeline = (): void => {
+    if (wokeUp || !preloadFired || video.readyState < 1) return;
+    wokeUp = true;
+    scrubLog(video, 'preload-branch-microseek');
+    // defer past this event-loop turn so the network/decode wakeup doesn't
+    // stutter the active scroll frame
+    setTimeout(() => {
+      if (video.currentTime === 0) video.currentTime = 0.001;
+    }, 0);
+  };
+
   const onLoadedMetadata = (): void => {
     metadataReady = Number.isFinite(video.duration) && video.duration > 0;
     scrubLog(video, 'loadedmetadata-handled', {
@@ -169,12 +190,21 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
     });
     video.pause();
     applyFit();
-    ScrollTrigger.refresh();
+    // If metadata resolves while the visitor is already inside the pinned
+    // scene, nothing else re-asserts the frame, so a stationary visitor would
+    // stay frozen on the poster. Re-seek to the current progress explicitly.
+    // (Replaces an unconditional ScrollTrigger.refresh() that only served as an
+    // incidental re-kick and could re-pin mid-scene.)
+    if (metadataReady && trigger?.isActive) {
+      seekTo(trigger.progress * video.duration, 'loadedmetadata-rekick');
+    }
+    primePipeline();
   };
 
   video.addEventListener('seeked', onSeeked);
-  // Not { once: true }: video.load() (preload trigger below) resets duration
-  // to NaN until this fires again — metadataReady must track that reset.
+  // Not { once: true }: a stationary visitor whose metadata resolves mid-scene
+  // relies on this handler to re-seek to the current progress, and metadataReady
+  // must track any later re-fire.
   video.addEventListener('loadedmetadata', onLoadedMetadata);
   if (metadataReady) applyFit();
 
@@ -260,54 +290,14 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
     once: true,
     onEnter: () => {
       scrubLog(video, 'preload-trigger-fired', { readyState: video.readyState });
+      // Bump the hint so buffering continues; never call video.load() — on a
+      // cold connection it would abort an in-flight metadata/body fetch and
+      // restart resource selection, adding latency exactly when the network is
+      // slowest. primePipeline() micro-seeks now if metadata is present,
+      // otherwise onLoadedMetadata retries it once metadata arrives.
+      preloadFired = true;
       video.preload = 'auto';
-      // Only reload if metadata is genuinely missing — load() resets the
-      // element (duration goes NaN) and re-opens the race window we're
-      // trying to close, so skip it when readyState already has metadata.
-      if (video.readyState < 1) {
-        scrubLog(video, 'preload-branch-load-called');
-        metadataReady = false;
-        video.load();
-      } else {
-        scrubLog(video, 'preload-branch-microseek');
-        /**
-         * ── PIPELINE WAKEUP (MICRO-SEEK) ─────────────────────────────────────
-         * Why it exists:
-         * Under standard browser behavior (especially WebKit/Safari/iOS), when a
-         * video is initially rendered with preload="metadata", the browser loads
-         * the metadata and suspends the pipeline immediately. Setting preload="auto"
-         * dynamically later is typically ignored as an inactive hint.
-         *
-         * How it works:
-         * To force the browser to resume fetching and prime the decode pipeline before
-         * the user visually enters the scene, we execute a micro-seek to 0.001 seconds.
-         * This forces the media pipeline to fetch the initial byte range from Vercel
-         * via HTTP 206, and places the decoded first frame directly into hot memory.
-         *
-         * Ownership contract:
-         * - This is NOT a user-visible seek; it is a one-time pipeline initialization.
-         * - Because the preloadTrigger fires far upstream (top bottom+=350%) and runs
-         *   exactly once (once: true), the active scrub Trigger is guaranteed to be
-         *   inactive (self.isActive === false). Playback control remains completely
-         *   undisputed. Modern scrub coordinates overwrite currentTime instantly 
-         *   upon entering the viewport.
-         * - Future maintainers: DO NOT remove this. It prevents the white/black frame
-         *   Vercel loading delay on deep scroll entries.
-         *
-         * Timing selection:
-         * We use setTimeout(wakeup, 0) to push this seek to the end of the current
-         * event loop queue. Waking up the media element starts network I/O and hardware
-         * decoding overhead. By using setTimeout instead of requestAnimationFrame (which
-         * executes during visual rendering pipeline phases) or queueMicrotask (which
-         * runs prior to paints), we prevent main-thread layout/scroll stutter.
-         */
-        const wakeup = () => {
-          if (video.currentTime === 0) {
-            video.currentTime = 0.001;
-          }
-        };
-        setTimeout(wakeup, 0);
-      }
+      primePipeline();
     },
   });
 
