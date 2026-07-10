@@ -120,6 +120,9 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   // MILESTONE 0: timestamp of the most recent 'seeking' event, to compute
   // seeking→seeked latency without altering the coalescing logic.
   let seekingStartedAt = 0;
+  // Set while primePipeline walks the timeline to warm cold byte ranges before
+  // entry; suppresses the onSeeked catch-up so warm seeks don't fight it.
+  let warming = false;
 
   // object-position stays permanently centered via CSS; only object-fit varies here.
   const applyFit = (): void => {
@@ -151,6 +154,7 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   };
 
   const onSeeked = (): void => {
+    if (warming) return;
     scrubLog(video, 'seeked', {
       target,
       seekingLatencyMs: seekingStartedAt ? performance.now() - seekingStartedAt : null,
@@ -160,25 +164,60 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
     }
   };
 
-  // One-time pipeline wakeup (micro-seek). Forces the media element to resume
-  // fetching and prime the decode pipeline before the visitor reaches the
-  // scene, avoiding the white/black first-frame delay on deep scroll entries.
-  // Gated on the preload trigger having fired AND metadata being present.
-  // Never calls video.load(): on a cold connection the metadata/body fetch may
-  // still be in flight when the preload trigger fires, and load() would abort
-  // it and restart resource selection — the RCA-confirmed harm in the network-
-  // bound slow path. If metadata isn't ready yet, onLoadedMetadata retries this.
+  // One-time pipeline warm-up during the preload lead window. Primes the decode
+  // pipeline AND buffers the timeline so a deep scrub doesn't hit a cold byte
+  // range. Gated on the preload trigger having fired AND metadata present.
+  // Never calls video.load() — on a cold connection it would abort the in-flight
+  // fetch and restart resource selection (the RCA-confirmed slow-path harm). If
+  // metadata isn't ready yet, onLoadedMetadata retries this.
+  //
+  // A head-only micro-seek is enough for the small clips (hero, system-world):
+  // preload='auto' residents them fully, so a deep seek is already buffered. The
+  // large clips (author-reveal, invitation) suspend with the tail cold, so a
+  // scrub into the back half hits an unbuffered range and freezes. So we walk a
+  // few points across the duration to pull those ranges into buffer ahead of
+  // entry — skipping any already resident (small clips do nothing), aborting the
+  // instant the scene goes active, and finishing at the head so it opens on
+  // frame 0.
   let preloadFired = false;
   let wokeUp = false;
   const primePipeline = (): void => {
-    if (wokeUp || !preloadFired || video.readyState < 1) return;
+    if (wokeUp || !preloadFired || video.readyState < 1 || !Number.isFinite(video.duration)) return;
     wokeUp = true;
     scrubLog(video, 'preload-branch-microseek');
-    // defer past this event-loop turn so the network/decode wakeup doesn't
-    // stutter the active scroll frame
-    setTimeout(() => {
-      if (video.currentTime === 0) video.currentTime = 0.001;
-    }, 0);
+    const steps = [0.25, 0.5, 0.75, 0.999].map((f) => f * video.duration);
+    warming = true;
+    let i = 0;
+    const walk = (): void => {
+      if (!warming) return;
+      // scene reached: hand the timeline straight back to the scrub
+      if (trigger?.isActive) {
+        warming = false;
+        if (metadataReady) seekTo(trigger.progress * video.duration, 'warm-abort');
+        return;
+      }
+      if (i >= steps.length) {
+        warming = false;
+        if (video.currentTime !== 0) video.currentTime = 0.001;
+        return;
+      }
+      const pos = steps[i++];
+      // already resident (small clip, or already warmed) → next, no network
+      if (isTimeBuffered(video, pos)) {
+        walk();
+        return;
+      }
+      const onWarmSeeked = (): void => {
+        video.removeEventListener('seeked', onWarmSeeked);
+        walk();
+      };
+      video.addEventListener('seeked', onWarmSeeked);
+      // defer so a warm seek never fights an in-flight seek
+      setTimeout(() => {
+        if (warming) video.currentTime = pos;
+      }, 0);
+    };
+    setTimeout(walk, 0);
   };
 
   const onLoadedMetadata = (): void => {
@@ -302,6 +341,7 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   });
 
   return function teardown(): void {
+    warming = false;
     trigger?.kill();
     preloadTrigger.kill();
     video.removeEventListener('seeked', onSeeked);
