@@ -1,6 +1,67 @@
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SCROLL } from './tokens';
 
+/**
+ * ── MILESTONE 0 — TEMPORARY RUNTIME INSTRUMENTATION ─────────────────────────
+ * Proves or disproves the production-freeze RCA (buffer starvation on random-
+ * access seek, video.load() resource-restart, metadataReady gate dropping
+ * updates while pinned). Opt-in only (?scrubdebug=1) — zero listeners, zero
+ * console output, zero branching cost in the hot path when disabled.
+ * Fully removable: delete this block + every `scrubLog(...)` call site once
+ * the RCA is confirmed or revised (see plan §Milestone 0).
+ */
+const SCRUB_DEBUG =
+  typeof window !== 'undefined' &&
+  (window.location.search.includes('scrubdebug') ||
+    (window as unknown as { __SCRUB_DEBUG?: boolean }).__SCRUB_DEBUG === true);
+
+interface ScrubLogEntry {
+  t: number;
+  event: string;
+  [key: string]: unknown;
+}
+
+const videoDebugId = (video: HTMLVideoElement): string => {
+  const src = video.currentSrc || video.src || 'unknown';
+  return (src.split('/').pop() || 'unknown').replace(/\.[^.]+$/, '');
+};
+
+const bufferedRanges = (video: HTMLVideoElement): Array<[number, number]> => {
+  const ranges: Array<[number, number]> = [];
+  for (let i = 0; i < video.buffered.length; i++) {
+    ranges.push([video.buffered.start(i), video.buffered.end(i)]);
+  }
+  return ranges;
+};
+
+const isTimeBuffered = (video: HTMLVideoElement, time: number): boolean => {
+  for (let i = 0; i < video.buffered.length; i++) {
+    if (time >= video.buffered.start(i) && time <= video.buffered.end(i)) return true;
+  }
+  return false;
+};
+
+const scrubLog = (video: HTMLVideoElement, event: string, extra?: Record<string, unknown>): void => {
+  if (!SCRUB_DEBUG) return;
+  const id = videoDebugId(video);
+  const w = window as unknown as { __scrubLog?: Record<string, ScrubLogEntry[]> };
+  w.__scrubLog ??= {};
+  w.__scrubLog[id] ??= [];
+  const entry: ScrubLogEntry = {
+    t: performance.now(),
+    event,
+    currentTime: video.currentTime,
+    readyState: video.readyState,
+    networkState: video.networkState,
+    buffered: bufferedRanges(video),
+    ...extra,
+  };
+  w.__scrubLog[id].push(entry);
+  // eslint-disable-next-line no-console -- gated debug instrumentation, removed with this block
+  console.debug(`[scrub:${id}]`, event, entry);
+};
+/* ── END MILESTONE 0 SETUP (usage is threaded through scrubVideo below) ──── */
+
 export interface ScrubVideoOptions {
   trigger: Element;
   start: string;
@@ -50,6 +111,16 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   let metadataReady =
     video.readyState >= 1 && Number.isFinite(video.duration) && video.duration > 0;
 
+  // MILESTONE 0: `trigger` is assigned after ScrollTrigger.create() below, but
+  // onLoadedMetadata (async callback) always runs after this closure returns,
+  // so the reference is populated by the time it reads it. Read-only — does
+  // not change playback behavior, only lets the log answer "did metadata
+  // arrive before or after the scene was pinned/active".
+  let trigger: ScrollTrigger | undefined;
+  // MILESTONE 0: timestamp of the most recent 'seeking' event, to compute
+  // seeking→seeked latency without altering the coalescing logic.
+  let seekingStartedAt = 0;
+
   // object-position stays permanently centered via CSS; only object-fit varies here.
   const applyFit = (): void => {
     if (!opts.manageFit || !video.videoWidth || !video.videoHeight) return;
@@ -57,15 +128,33 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   };
 
   // video.seeking is the native in-flight flag — no shadow boolean to keep in sync.
-  const seekTo = (time: number): void => {
+  const seekTo = (time: number, source?: string): void => {
     if (!Number.isFinite(time)) return;
     target = time;
-    if (video.seeking) return;
+    if (video.seeking) {
+      scrubLog(video, 'seekTo-suppressed-already-seeking', { target: time, source });
+      return;
+    }
     if (Math.abs(video.currentTime - target) < FRAME_DELTA_S) return;
+    // MILESTONE 0: proves/disproves the Primary hypothesis — is the seek
+    // target already inside a buffered byte range at the moment we ask for
+    // it? Guarded by SCRUB_DEBUG here (not just inside scrubLog) so the
+    // isTimeBuffered() scan never runs on the hot scroll path when disabled.
+    if (SCRUB_DEBUG) {
+      scrubLog(video, 'seekTo', {
+        target: time,
+        source,
+        targetBuffered: isTimeBuffered(video, time),
+      });
+    }
     video.currentTime = target;
   };
 
   const onSeeked = (): void => {
+    scrubLog(video, 'seeked', {
+      target,
+      seekingLatencyMs: seekingStartedAt ? performance.now() - seekingStartedAt : null,
+    });
     if (Math.abs(video.currentTime - target) >= FRAME_DELTA_S) {
       video.currentTime = target;
     }
@@ -73,6 +162,11 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
 
   const onLoadedMetadata = (): void => {
     metadataReady = Number.isFinite(video.duration) && video.duration > 0;
+    scrubLog(video, 'loadedmetadata-handled', {
+      metadataReady,
+      triggerActive: trigger?.isActive ?? null,
+      triggerProgress: trigger?.progress ?? null,
+    });
     video.pause();
     applyFit();
     ScrollTrigger.refresh();
@@ -84,11 +178,42 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   video.addEventListener('loadedmetadata', onLoadedMetadata);
   if (metadataReady) applyFit();
 
+  // MILESTONE 0: raw lifecycle listeners, opt-in only — zero cost when
+  // SCRUB_DEBUG is false (the array below is never created/attached).
+  const debugListeners: Array<[string, EventListener]> = [];
+  if (SCRUB_DEBUG) {
+    const rawEvents = [
+      'loadstart',
+      'loadeddata',
+      'canplay',
+      'canplaythrough',
+      'progress',
+      'suspend',
+      'waiting',
+      'stalled',
+      'emptied',
+      'abort',
+      'error',
+      'durationchange',
+    ] as const;
+    rawEvents.forEach((ev) => {
+      const handler: EventListener = () => scrubLog(video, ev);
+      video.addEventListener(ev, handler);
+      debugListeners.push([ev, handler]);
+    });
+    const onSeeking: EventListener = () => {
+      seekingStartedAt = performance.now();
+      scrubLog(video, 'seeking', { target });
+    };
+    video.addEventListener('seeking', onSeeking);
+    debugListeners.push(['seeking', onSeeking]);
+  }
+
   const scrubSmoothing = isCoarsePointer()
     ? SCROLL.touchScrubSmoothingS
     : SCROLL.renderCatchupS;
 
-  const trigger = ScrollTrigger.create({
+  trigger = ScrollTrigger.create({
     trigger: opts.trigger,
     start: opts.start,
     end: opts.end,
@@ -100,7 +225,17 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
       opts.onToggle?.(self.isActive);
     },
     onUpdate: (self) => {
-      if (!metadataReady) return;
+      if (!metadataReady) {
+        // MILESTONE 0: proves/disproves whether onUpdate ever fires while the
+        // scene is actively pinned but metadata hasn't resolved yet (A4/A5).
+        if (self.isActive) {
+          scrubLog(video, 'onUpdate-skipped-metadataNotReady', {
+            triggerProgress: self.progress,
+            triggerActive: self.isActive,
+          });
+        }
+        return;
+      }
       // self.progress still fires onUpdate outside the active window (clamped
       // 0/1); without this guard a trigger that was never actually entered —
       // e.g. jumped over by a deep-link or refresh landing past it — can
@@ -109,14 +244,14 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
       if (!self.isActive) return;
       if (activeVideo && activeVideo !== video) return;
       activeVideo = video;
-      seekTo(self.progress * video.duration);
+      seekTo(self.progress * video.duration, 'onUpdate');
     },
     // isActive is already false by the time onLeave/onLeaveBack fire, so a
     // fast scroll that lands past the boundary in one step would otherwise
     // skip the final onUpdate — these guarantee the scene actually reaches
     // its final frame (or frame zero, scrolling up) before it releases.
-    onLeave: () => seekTo(video.duration),
-    onLeaveBack: () => seekTo(0),
+    onLeave: () => seekTo(video.duration, 'onLeave'),
+    onLeaveBack: () => seekTo(0, 'onLeaveBack'),
   });
 
   const preloadTrigger = ScrollTrigger.create({
@@ -124,14 +259,17 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
     start: PRELOAD_LEAD_START,
     once: true,
     onEnter: () => {
+      scrubLog(video, 'preload-trigger-fired', { readyState: video.readyState });
       video.preload = 'auto';
       // Only reload if metadata is genuinely missing — load() resets the
       // element (duration goes NaN) and re-opens the race window we're
       // trying to close, so skip it when readyState already has metadata.
       if (video.readyState < 1) {
+        scrubLog(video, 'preload-branch-load-called');
         metadataReady = false;
         video.load();
       } else {
+        scrubLog(video, 'preload-branch-microseek');
         /**
          * ── PIPELINE WAKEUP (MICRO-SEEK) ─────────────────────────────────────
          * Why it exists:
@@ -174,10 +312,12 @@ export function scrubVideo(video: HTMLVideoElement, opts: ScrubVideoOptions): ()
   });
 
   return function teardown(): void {
-    trigger.kill();
+    trigger?.kill();
     preloadTrigger.kill();
     video.removeEventListener('seeked', onSeeked);
     video.removeEventListener('loadedmetadata', onLoadedMetadata);
+    // MILESTONE 0: symmetric cleanup for the gated debug listeners.
+    debugListeners.forEach(([ev, handler]) => video.removeEventListener(ev, handler));
     if (activeVideo === video) activeVideo = null;
   };
 }
